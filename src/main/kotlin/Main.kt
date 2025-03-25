@@ -12,6 +12,5 @@
 //}
 
 fun main() {
-
-    updateInventoryStock(1, 200)
+  listCustomerPurchaseHistory(7888)
 }

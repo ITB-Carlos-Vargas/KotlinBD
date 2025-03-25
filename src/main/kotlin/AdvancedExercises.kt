@@ -39,23 +39,69 @@ fun updateInventoryStock(prodId: Int, change: Int) {
 }
 
 fun listLowStockProducts() {
-    // TODO: Mostrar productos con quan_in_stock < 5 junto con su título
+    val sql = "select p.prod_id , p.title , i.quan_in_stock from products p inner join inventory i on i.prod_id = p.prod_id where  i.quan_in_stock  <5 "
+    Database.getConnection()?.use { conn ->
+        conn.createStatement().use {
+            val rs = it.executeQuery(sql)
+            while (rs.next()) {
+                println("${rs.getInt("prod_id")} - ${rs.getString("title")} (${rs.getInt("quan_in_stock")})")
+            }
+        }
+    }
 }
 
 fun insertOrderLine(orderId: Int, prodId: Int, quantity: Int) {
-    // TODO: Insertar una nueva línea en orderlines con la fecha actual
+    val orderlineid = ultimaOrderLine_(prodId) +1 //obtenemos la ultima orderline del producto y le sumamos 1
+    val sql = "INSERT INTO orderlines (orderlineid, orderid, prod_id, quantity, orderdate) VALUES (?, ?, ?, ?, current_date)"
+    Database.getConnection()?.use { conn ->
+        conn.prepareStatement(sql).use {
+            it.setInt(1, orderlineid)       // ID del la order line
+            it.setInt(2, orderId)     // id de la orden
+            it.setInt(3, prodId)           // id del producto
+            it.setInt(4, quantity)         // cantidad
+            it.executeUpdate()
+            println("Linea de pedido registrada correctamente.")
+        }
+    }
 }
 
 fun listOrderLines(orderId: Int) {
-    // TODO: Mostrar líneas del pedido, incluyendo título del producto y cantidad
+    val sql = "select o.orderlineid , p.title , o.quantity , o.orderdate from orderlines o inner join products p on o.prod_id  = p.prod_id  where o.orderid  = $orderId"
+    Database.getConnection()?.use { conn ->
+        conn.createStatement().use {
+            val rs = it.executeQuery(sql)
+            while (rs.next()) {
+                println("${rs.getInt("orderlineid")} - ${rs.getString("title")} - (${rs.getInt("quantity")}) - ${rs.getString("orderdate")}")
+            }
+        }
+    }
+
 }
 
 fun deleteCustomerOrders(customerId: Int) {
-    // TODO: Eliminar todos los pedidos y líneas de pedido asociados al cliente
+    borrarOrderLines(customerId) //borrar primero las orderlines
+
+    val sql = "DELETE FROM orders WHERE customerid = ?"
+    Database.getConnection()?.use { conn ->
+        conn.prepareStatement(sql).use {
+            it.setInt(1, customerId)
+            it.executeUpdate()
+            println("Pedido eliminado.")
+        }
+    }
 }
 
 fun listCustomerPurchaseHistory(customerId: Int) {
-    // TODO: Mostrar historial de compras del cliente con JOIN entre cust_hist, products y orders
+    val sql = "select p.title , o.orderdate , ch.orderid from cust_hist ch inner join products p on p.prod_id = ch.prod_id " +
+            "inner join orders o on o.orderid = ch.orderid where ch.customerid  = $customerId"
+    Database.getConnection()?.use { conn ->
+        conn.createStatement().use {
+            val rs = it.executeQuery(sql)
+            while (rs.next()) {
+                println("${rs.getString("title")} - ${rs.getString("orderdate")} - (${rs.getInt("orderid")})")
+            }
+        }
+    }
 }
 
 fun insertCategory(categoryName: String) {
@@ -64,4 +110,30 @@ fun insertCategory(categoryName: String) {
 
 fun deleteCategoryAndProducts(categoryId: Int) {
     // TODO: Eliminar productos de la categoría y luego la categoría si no hay orderlines relacionadas
+}
+
+fun ultimaOrderLine_(prod_id : Int):Int{
+    var result = 0
+    val sql = "select orderlineid from orderlines where prod_id  = $prod_id order by orderlineid desc limit 1"
+    Database.getConnection()?.use { conn ->
+        conn.createStatement().use {
+            val rs = it.executeQuery(sql)
+            while (rs.next()) {
+                result = rs.getInt("orderlineid")
+            }
+        }
+    }
+    return  result
+}
+
+fun borrarOrderLines(customerId: Int){
+    val sql = "DELETE FROM orderlines WHERE orderid in (select orderid from orders where  customerid  = ?)"
+
+    Database.getConnection()?.use { conn ->
+        conn.prepareStatement(sql).use {
+            it.setInt(1, customerId)
+            it.executeUpdate()
+            println("Orderlines eliminadas eliminado.")
+        }
+    }
 }
