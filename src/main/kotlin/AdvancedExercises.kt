@@ -106,7 +106,7 @@ fun listCustomerPurchaseHistory(customerId: Int) {
 
 fun insertCategory(categoryName: String) {
     val existencia = comprobarCategoryName(categoryName)
-    if (existencia){
+    if (!existencia){
         val categoria = ultimaCategoria() +1 //obtenemos la ultima categoria  y le sumamos 1
         val sql = "INSERT INTO categories (category, categoryname) VALUES (?, ?)"
         Database.getConnection()?.use { conn ->
@@ -114,7 +114,7 @@ fun insertCategory(categoryName: String) {
                 it.setInt(1, categoria)       // ID del la categoria
                 it.setString(2, categoryName)     // nombre de la categoria
                 it.executeUpdate()
-                println("Linea de pedido registrada correctamente.")
+                println("Categoria registrada correctamente.")
             }
         }
     }
@@ -122,7 +122,23 @@ fun insertCategory(categoryName: String) {
 }
 
 fun deleteCategoryAndProducts(categoryId: Int) {
-    // TODO: Eliminar productos de la categoría y luego la categoría si no hay orderlines relacionadas
+    val sql = "select prod_id from products p where category = $categoryId"
+    Database.getConnection()?.use { conn ->
+        conn.createStatement().use {
+            val rs = it.executeQuery(sql)
+            while (rs.next()) {
+                val producto = rs.getInt("prod_id")
+                val existencia = comprobarProductoOrderline(producto)
+                //eliminar productos y categoria si no existe la ordeline
+                if (!existencia){
+                    deleteProduct(producto)
+                    deleteCategory(categoryId)
+
+                }
+
+            }
+        }
+    }
 }
 
 fun ultimaOrderLine_(prod_id : Int):Int{
@@ -166,15 +182,38 @@ fun ultimaCategoria():Int{
     return categoria
 }
 
-fun comprobarCategoryName(categoryName:String):Boolean{
+fun comprobarCategoryName(name:String):Boolean{
+    var result = false
+    var nombre = ""
+    val sql = "select categoryname from categories c where categoryname  = '$name'"
+    Database.getConnection()?.use { conn ->
+        conn.createStatement().use {
+            val rs = it.executeQuery(sql)
+            while (rs.next()) {
+                nombre = "${rs.getInt("categoryname")}"
+            }
+        }
+    }
+    if (nombre != ""){
+        result = true
+    }
+    else{
+        println("CategoryName no  existente")
+    }
+    return result
+}
+
+fun comprobarProductoOrderline(prod_id: Int):Boolean{
     var result = false
     var producto = ""
-    val sql = "select categoryname from categories c where categoryname  = $categoryName"
+    var orderLine = ""
+    val sql = "select prod_id, orderlineid from orderlines o where prod_id  = $prod_id"
     Database.getConnection()?.use { conn ->
         conn.createStatement().use {
             val rs = it.executeQuery(sql)
             while (rs.next()) {
                 producto = "${rs.getInt("prod_id")}"
+                orderLine = "${rs.getInt("prod_id")}"
             }
         }
     }
@@ -182,7 +221,21 @@ fun comprobarCategoryName(categoryName:String):Boolean{
         result = true
     }
     else{
-        println("CategoryName ya  existente")
+        println("Prodcuto $producto no existente en la OrderLine $orderLine")
     }
     return result
 }
+
+
+fun deleteCategory(categoryId: Int){
+    val sql = "DELETE FROM categories WHERE category = ?"
+    Database.getConnection()?.use { conn ->
+        conn.prepareStatement(sql).use {
+            it.setInt(1, categoryId)
+            it.executeUpdate()
+            println("Categoria $categoryId eliminado.")
+        }
+    }
+}
+
+
