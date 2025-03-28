@@ -123,21 +123,24 @@ fun insertCategory(categoryName: String) {
 
 fun deleteCategoryAndProducts(categoryId: Int) {
     val sql = "select prod_id from products p where category = $categoryId"
-    Database.getConnection()?.use { conn ->
-        conn.createStatement().use {
-            val rs = it.executeQuery(sql)
-            while (rs.next()) {
-                val producto = rs.getInt("prod_id")
-                val existencia = comprobarProductoOrderline(producto)
-                //eliminar productos y categoria si no existe la ordeline
-                if (!existencia){
+    //primero comprobar si existen orderlines con productos con la categoria asignada
+    val existencia = comprobarProductoOrderline(categoryId)
+    //borrar productos
+    if (!existencia){
+        Database.getConnection()?.use { conn ->
+            conn.createStatement().use {
+                val rs = it.executeQuery(sql)
+                while (rs.next()) {
+                    val producto = rs.getInt("prod_id")
                     deleteProduct(producto)
-                    deleteCategory(categoryId)
-
                 }
-
             }
         }
+        //borrar la categoria
+        deleteCategory(categoryId)
+    }
+    else{
+        println("Existen orderLines con productos con la categoria $categoryId")
     }
 }
 
@@ -203,25 +206,21 @@ fun comprobarCategoryName(name:String):Boolean{
     return result
 }
 
-fun comprobarProductoOrderline(prod_id: Int):Boolean{
+fun comprobarProductoOrderline(categoryId: Int):Boolean{
     var result = false
-    var producto = ""
     var orderLine = ""
-    val sql = "select prod_id, orderlineid from orderlines o where prod_id  = $prod_id"
+    val sql = "select o.orderlineid from products p inner join orderlines o on o.prod_id  = p.prod_id " +
+            "where p.category = $categoryId and o.orderlineid is not null limit 1"
     Database.getConnection()?.use { conn ->
         conn.createStatement().use {
             val rs = it.executeQuery(sql)
             while (rs.next()) {
-                producto = "${rs.getInt("prod_id")}"
-                orderLine = "${rs.getInt("prod_id")}"
+                orderLine = "${rs.getInt("orderlineid")}"
             }
         }
     }
-    if (producto != ""){
+    if (orderLine != ""){
         result = true
-    }
-    else{
-        println("Prodcuto $producto no existente en la OrderLine $orderLine")
     }
     return result
 }

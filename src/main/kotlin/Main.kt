@@ -12,5 +12,6 @@
 //}
 
 fun main() {
-  listCustomerPurchaseHistory(7888)
+  deleteCategoryAndProducts(2)
+
 }
